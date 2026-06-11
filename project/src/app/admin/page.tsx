@@ -2,47 +2,69 @@
 
 import { useEffect, useState } from "react";
 import Shell from "@/components/layout/Shell";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Plus, Edit2, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { createMatch, updateMatch, deleteMatch } from "@/lib/matches";
 
+import { createMatch, updateMatch, deleteMatch } from "@/lib/matches";
 import { db } from "@/app/lib/firebase";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 
 export default function AdminPage() {
   const [matches, setMatches] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [editingMatch, setEditingMatch] = useState<any | null>(null);
 
-  // ⚠️ TEMPORAL: hasta que conectemos auth real
   const isAdmin = true;
 
   // =========================
-  // CARGAR MATCHES
+  // MATCHES
   // =========================
   useEffect(() => {
     const fetchMatches = async () => {
       const snap = await getDocs(collection(db, "matches"));
-      setMatches(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setMatches(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     };
-
     fetchMatches();
   }, []);
 
   // =========================
-  // CARGAR USERS
+  // USERS
   // =========================
   useEffect(() => {
     const fetchUsers = async () => {
       const snap = await getDocs(collection(db, "users"));
-      setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setUsers(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     };
-
     fetchUsers();
   }, []);
 
@@ -52,7 +74,9 @@ export default function AdminPage() {
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <AlertCircle className="h-16 w-16 text-destructive" />
           <h1 className="text-2xl font-bold">Acceso Denegado</h1>
-          <p className="text-muted-foreground">Solo el administrador puede acceder a esta sección.</p>
+          <p className="text-muted-foreground">
+            Solo el administrador puede acceder a esta sección.
+          </p>
         </div>
       </Shell>
     );
@@ -61,8 +85,12 @@ export default function AdminPage() {
   return (
     <Shell>
       <div className="mb-8">
-        <h1 className="text-3xl font-headline font-bold">Panel de Administración</h1>
-        <p className="text-muted-foreground">Gestiona partidos, usuarios y resultados</p>
+        <h1 className="text-3xl font-headline font-bold">
+          Panel de Administración
+        </h1>
+        <p className="text-muted-foreground">
+          Gestiona partidos, usuarios y resultados
+        </p>
       </div>
 
       <Tabs defaultValue="matches">
@@ -72,31 +100,39 @@ export default function AdminPage() {
           <TabsTrigger value="results">Publicar Resultados</TabsTrigger>
         </TabsList>
 
-        {/* =========================
-            MATCHES
-        ========================= */}
+        {/* ========================= MATCHES ========================= */}
         <TabsContent value="matches">
           <Card>
             <CardHeader className="flex flex-row justify-between items-center">
               <div>
                 <CardTitle>Partidos del Mundial</CardTitle>
-                <CardDescription>Crea y edita la programación oficial</CardDescription>
+                <CardDescription>
+                  Crea y edita la programación oficial
+                </CardDescription>
               </div>
 
+              {/* ➕ CREAR PARTIDO (CORREGIDO) */}
               <Button
                 size="sm"
                 className="blue-gradient"
                 onClick={async () => {
-                  await addDoc(collection(db, "matches"), {
+                  await createMatch({
                     fecha: new Date().toISOString(),
                     local: "México",
                     visitante: "USA",
                     fase: "Grupos",
-                    estado: "programado"
+                    estado: "programado",
                   });
+
+                  // refrescar
+                  const snap = await getDocs(collection(db, "matches"));
+                  setMatches(
+                    snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+                  );
                 }}
               >
-                <Plus className="mr-2 h-4 w-4" /> Nuevo Partido
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo Partido
               </Button>
             </CardHeader>
 
@@ -132,10 +168,34 @@ export default function AdminPage() {
                       </TableCell>
 
                       <TableCell className="text-right space-x-2">
-                        <Button variant="ghost" size="icon">
+                        {/* ✏️ EDITAR */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingMatch(m)}
+                        >
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive">
+
+                        {/* 🗑️ ELIMINAR */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={async () => {
+                            await deleteMatch(m.id);
+
+                            const snap = await getDocs(
+                              collection(db, "matches")
+                            );
+                            setMatches(
+                              snap.docs.map((doc) => ({
+                                id: doc.id,
+                                ...doc.data(),
+                              }))
+                            );
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -147,9 +207,7 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
 
-        {/* =========================
-            USERS
-        ========================= */}
+        {/* ========================= USERS ========================= */}
         <TabsContent value="users">
           <Card>
             <CardHeader>
@@ -173,11 +231,9 @@ export default function AdminPage() {
                       <TableCell className="font-medium">
                         {u.name || "Sin nombre"}
                       </TableCell>
-
                       <TableCell className="text-muted-foreground text-sm">
                         {u.email}
                       </TableCell>
-
                       <TableCell>
                         <Switch defaultChecked />
                       </TableCell>
@@ -189,56 +245,80 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
 
-        {/* =========================
-            RESULTS (aún visual)
-        ========================= */}
+        {/* ========================= RESULTS ========================= */}
         <TabsContent value="results">
-          <div className="grid gap-6">
-            <Card className="border-accent/40 bg-accent/5">
-              <CardHeader>
-                <CardTitle className="text-accent flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5" />
-                  Ingreso de Resultado Oficial
-                </CardTitle>
-                <CardDescription>
-                  (Esto lo conectamos a ranking después)
-                </CardDescription>
-              </CardHeader>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Ingreso de Resultado Oficial
+              </CardTitle>
+              <CardDescription>
+                (Pendiente conectar ranking)
+              </CardDescription>
+            </CardHeader>
 
-              <CardContent className="space-y-6">
-                <div className="flex flex-col gap-4">
-                  <Label>Selecciona Partido</Label>
-                  <select className="w-full p-2 rounded-md border bg-background">
-                    {matches.map((m) => (
-                      <option key={m.id}>
-                        {m.local} vs {m.visitante}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-center gap-8 py-4">
-                  <div className="flex flex-col items-center gap-2">
-                    <Label>Local</Label>
-                    <Input type="number" className="w-20 text-center text-2xl h-16" defaultValue={0} />
-                  </div>
-
-                  <span className="text-3xl font-black mt-6">-</span>
-
-                  <div className="flex flex-col items-center gap-2">
-                    <Label>Visitante</Label>
-                    <Input type="number" className="w-20 text-center text-2xl h-16" defaultValue={0} />
-                  </div>
-                </div>
-
-                <Button className="w-full gold-gradient text-black font-bold h-12 text-lg">
-                  Publicar y Recalcular Ranking
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Aquí después conectamos el sistema de puntos.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ========================= EDIT MODAL ========================= */}
+      {editingMatch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-background p-6 rounded-lg w-[400px] space-y-4">
+            <h2 className="text-lg font-bold">Editar Partido</h2>
+
+            <Input
+              value={editingMatch.local}
+              onChange={(e) =>
+                setEditingMatch({
+                  ...editingMatch,
+                  local: e.target.value,
+                })
+              }
+            />
+
+            <Input
+              value={editingMatch.visitante}
+              onChange={(e) =>
+                setEditingMatch({
+                  ...editingMatch,
+                  visitante: e.target.value,
+                })
+              }
+            />
+
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setEditingMatch(null)}>
+                Cancelar
+              </Button>
+
+              <Button
+                onClick={async () => {
+                  await updateMatch(editingMatch.id, editingMatch);
+
+                  setEditingMatch(null);
+
+                  const snap = await getDocs(collection(db, "matches"));
+                  setMatches(
+                    snap.docs.map((doc) => ({
+                      id: doc.id,
+                      ...doc.data(),
+                    }))
+                  );
+                }}
+              >
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }
