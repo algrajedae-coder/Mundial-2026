@@ -12,7 +12,7 @@ import { Plus, Edit2, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 export default function AdminPage() {
-  const [isAdmin, setIsAdmin] = useState(true); // Normally from profile check
+  const isAdmin = profile?.rol === 'admin'; // Normally from profile check
 
   if (!isAdmin) {
     return (
