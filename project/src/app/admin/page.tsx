@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Plus, Edit2, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { createMatch, updateMatch, deleteMatch } from "@/lib/matches";
 
 import { db } from "@/app/lib/firebase";
 import { collection, addDoc, getDocs } from "firebase/firestore";
