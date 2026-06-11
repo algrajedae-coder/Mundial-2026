@@ -1,18 +1,49 @@
-"use client"
+"use client";
 
-import { useState } from 'react';
-import Shell from '@/components/layout/Shell';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Plus, Edit2, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
+import { useEffect, useState } from "react";
+import Shell from "@/components/layout/Shell";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Plus, Edit2, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+
+import { db } from "@/app/lib/firebase";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 
 export default function AdminPage() {
-  const isAdmin = profile?.rol === 'admin'; // Normally from profile check
+  const [matches, setMatches] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+
+  // ⚠️ TEMPORAL: hasta que conectemos auth real
+  const isAdmin = true;
+
+  // =========================
+  // CARGAR MATCHES
+  // =========================
+  useEffect(() => {
+    const fetchMatches = async () => {
+      const snap = await getDocs(collection(db, "matches"));
+      setMatches(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+
+    fetchMatches();
+  }, []);
+
+  // =========================
+  // CARGAR USERS
+  // =========================
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const snap = await getDocs(collection(db, "users"));
+      setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+
+    fetchUsers();
+  }, []);
 
   if (!isAdmin) {
     return (
@@ -40,6 +71,9 @@ export default function AdminPage() {
           <TabsTrigger value="results">Publicar Resultados</TabsTrigger>
         </TabsList>
 
+        {/* =========================
+            MATCHES
+        ========================= */}
         <TabsContent value="matches">
           <Card>
             <CardHeader className="flex flex-row justify-between items-center">
@@ -47,8 +81,24 @@ export default function AdminPage() {
                 <CardTitle>Partidos del Mundial</CardTitle>
                 <CardDescription>Crea y edita la programación oficial</CardDescription>
               </div>
-              <Button size="sm" className="blue-gradient"><Plus className="mr-2 h-4 w-4" /> Nuevo Partido</Button>
+
+              <Button
+                size="sm"
+                className="blue-gradient"
+                onClick={async () => {
+                  await addDoc(collection(db, "matches"), {
+                    fecha: new Date().toISOString(),
+                    local: "México",
+                    visitante: "USA",
+                    fase: "Grupos",
+                    estado: "programado"
+                  });
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Nuevo Partido
+              </Button>
             </CardHeader>
+
             <CardContent>
               <Table>
                 <TableHeader>
@@ -60,29 +110,52 @@ export default function AdminPage() {
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  <TableRow>
-                    <TableCell className="text-xs">11 Jun, 16:00</TableCell>
-                    <TableCell className="font-bold">México vs TBD</TableCell>
-                    <TableCell>Grupos</TableCell>
-                    <TableCell><span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold">Programado</span></TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="ghost" size="icon"><Edit2 className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                    </TableCell>
-                  </TableRow>
+                  {matches.map((m) => (
+                    <TableRow key={m.id}>
+                      <TableCell className="text-xs">
+                        {m.fecha?.slice(0, 10)}
+                      </TableCell>
+
+                      <TableCell className="font-bold">
+                        {m.local} vs {m.visitante}
+                      </TableCell>
+
+                      <TableCell>{m.fase}</TableCell>
+
+                      <TableCell>
+                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold">
+                          {m.estado}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="ghost" size="icon">
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* =========================
+            USERS
+        ========================= */}
         <TabsContent value="users">
           <Card>
             <CardHeader>
-              <CardTitle>Participantes (7/20)</CardTitle>
-              <CardDescription>Habilita o deshabilita el acceso de los usuarios</CardDescription>
+              <CardTitle>Participantes</CardTitle>
+              <CardDescription>Usuarios reales desde Firebase</CardDescription>
             </CardHeader>
+
             <CardContent>
               <Table>
                 <TableHeader>
@@ -92,11 +165,18 @@ export default function AdminPage() {
                     <TableHead>Habilitado</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {['Carlos Pérez', 'Ana García', 'Luis Rodríguez'].map((name) => (
-                    <TableRow key={name}>
-                      <TableCell className="font-medium">{name}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{name.toLowerCase().replace(' ', '.')}@gmail.com</TableCell>
+                  {users.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">
+                        {u.name || "Sin nombre"}
+                      </TableCell>
+
+                      <TableCell className="text-muted-foreground text-sm">
+                        {u.email}
+                      </TableCell>
+
                       <TableCell>
                         <Switch defaultChecked />
                       </TableCell>
@@ -108,30 +188,45 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
 
+        {/* =========================
+            RESULTS (aún visual)
+        ========================= */}
         <TabsContent value="results">
           <div className="grid gap-6">
             <Card className="border-accent/40 bg-accent/5">
               <CardHeader>
-                <CardTitle className="text-accent flex items-center gap-2"><CheckCircle2 className="h-5 w-5" /> Ingreso de Resultado Oficial</CardTitle>
-                <CardDescription>Al guardar, se recalculará automáticamente el ranking</CardDescription>
+                <CardTitle className="text-accent flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Ingreso de Resultado Oficial
+                </CardTitle>
+                <CardDescription>
+                  (Esto lo conectamos a ranking después)
+                </CardDescription>
               </CardHeader>
+
               <CardContent className="space-y-6">
                 <div className="flex flex-col gap-4">
-                  <Label>Selecciona Partido Finalizado</Label>
+                  <Label>Selecciona Partido</Label>
                   <select className="w-full p-2 rounded-md border bg-background">
-                    <option>México vs TBD - 11 Jun 2026</option>
+                    {matches.map((m) => (
+                      <option key={m.id}>
+                        {m.local} vs {m.visitante}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                
+
                 <div className="flex items-center justify-center gap-8 py-4">
                   <div className="flex flex-col items-center gap-2">
-                    <Label className="text-lg">México</Label>
-                    <Input type="number" className="w-20 text-center text-2xl h-16 font-headline" defaultValue={0} />
+                    <Label>Local</Label>
+                    <Input type="number" className="w-20 text-center text-2xl h-16" defaultValue={0} />
                   </div>
+
                   <span className="text-3xl font-black mt-6">-</span>
+
                   <div className="flex flex-col items-center gap-2">
-                    <Label className="text-lg">TBD</Label>
-                    <Input type="number" className="w-20 text-center text-2xl h-16 font-headline" defaultValue={0} />
+                    <Label>Visitante</Label>
+                    <Input type="number" className="w-20 text-center text-2xl h-16" defaultValue={0} />
                   </div>
                 </div>
 
