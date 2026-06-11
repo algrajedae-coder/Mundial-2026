@@ -1,0 +1,16 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-stadium",
+      "description": "Stadium crowd",
+      "imageUrl": "https://picsum.photos/seed/worldcup/1200/600",
+      "imageHint": "soccer stadium"
+    },
+    {
+      "id": "generic-flag",
+      "description": "National flag placeholder",
+      "imageUrl": "https://picsum.photos/seed/flag/100/100",
+      "imageHint": "national flag"
+    }
+  ]
+}
