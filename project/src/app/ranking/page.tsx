@@ -1,24 +1,116 @@
-"use client"
+"use client";
 
-import Shell from '@/components/layout/Shell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Trophy, Medal, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { useEffect, useState } from "react";
+import Shell from "@/components/layout/Shell";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Trophy, Medal, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+import { db } from "@/app/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 export default function RankingPage() {
-  const ranking = [
-    { uid: '1', nombre: "Carlos Pérez", puntos: 45, exactos: 8, efectivos: 12, foto: "https://picsum.photos/seed/1/40/40" },
-    { uid: '2', nombre: "Ana García", puntos: 42, exactos: 6, efectivos: 15, foto: "https://picsum.photos/seed/2/40/40" },
-    { uid: '3', nombre: "Luis Rodríguez", puntos: 38, exactos: 5, efectivos: 14, foto: "https://picsum.photos/seed/3/40/40" },
-    { uid: '4', nombre: "Sofía Martínez", puntos: 35, exactos: 4, efectivos: 11, foto: "https://picsum.photos/seed/4/40/40" },
-    { uid: '5', nombre: "Roberto Gómez", puntos: 31, exactos: 3, efectivos: 10, foto: "https://picsum.photos/seed/5/40/40" },
-    { uid: '6', nombre: "Mariana Torres", puntos: 28, exactos: 2, efectivos: 12, foto: "https://picsum.photos/seed/6/40/40" },
-    { uid: '7', nombre: "Juan Pérez (Tú)", puntos: 24, exactos: 2, efectivos: 8, foto: "https://picsum.photos/seed/user/40/40", isUser: true },
-    { uid: '8', nombre: "Elena Ruiz", puntos: 21, exactos: 1, efectivos: 9, foto: "https://picsum.photos/seed/8/40/40" },
-  ];
+  const [ranking, setRanking] = useState<any[]>([]);
 
+  // =========================
+  // CARGAR DATOS FIREBASE
+  // =========================
+  useEffect(() => {
+    const loadRanking = async () => {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const matchesSnap = await getDocs(collection(db, "matches"));
+      const predSnap = await getDocs(collection(db, "predictions"));
+
+      const users = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const matches = matchesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const predictions = predSnap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      // =========================
+      // CALCULAR PUNTOS
+      // =========================
+      const usersMap: any = {};
+
+      users.forEach((u) => {
+        usersMap[u.id] = {
+          uid: u.id,
+          nombre: u.name || "Sin nombre",
+          foto: u.photoURL || "https://picsum.photos/40",
+          puntos: 0,
+          exactos: 0,
+          efectivos: 0,
+        };
+      });
+
+      predictions.forEach((p: any) => {
+        const user = usersMap[p.userId];
+        if (!user) return;
+
+        const match = matches.find((m: any) => m.id === p.matchId);
+        if (!match) return;
+
+        // ❗ si el partido aún no tiene resultado, no suma
+        if (match.estado !== "finished") return;
+
+        const isExact =
+          p.predictionLocal === match.marcadorLocal &&
+          p.predictionVisitante === match.marcadorVisitante;
+
+        if (isExact) {
+          user.puntos += 3;
+          user.exactos += 1;
+          return;
+        }
+
+        const predWinner =
+          p.predictionLocal > p.predictionVisitante
+            ? "L"
+            : p.predictionLocal < p.predictionVisitante
+            ? "V"
+            : "E";
+
+        const realWinner =
+          match.marcadorLocal > match.marcadorVisitante
+            ? "L"
+            : match.marcadorLocal < match.marcadorVisitante
+            ? "V"
+            : "E";
+
+        if (predWinner === realWinner) {
+          user.puntos += 1;
+          user.efectivos += 1;
+        }
+      });
+
+      const sorted = Object.values(usersMap).sort(
+        (a: any, b: any) => b.puntos - a.puntos
+      );
+
+      setRanking(sorted);
+    };
+
+    loadRanking();
+  }, []);
+
+  // =========================
+  // MEDALLAS
+  // =========================
   const getMedal = (pos: number) => {
     if (pos === 0) return <Medal className="text-yellow-500 h-5 w-5" />;
     if (pos === 1) return <Medal className="text-slate-300 h-5 w-5" />;
@@ -28,14 +120,19 @@ export default function RankingPage() {
 
   return (
     <Shell>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold">Ranking General</h1>
-          <p className="text-muted-foreground">La tabla oficial de participantes</p>
+          <h1 className="text-3xl font-headline font-bold">
+            Ranking General
+          </h1>
+          <p className="text-muted-foreground">
+            Tabla automática del Mundial
+          </p>
         </div>
+
         <div className="relative w-full md:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9 bg-card" placeholder="Buscar participante..." />
+          <Search className="absolute left-3 top-2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder="Buscar jugador..." />
         </div>
       </div>
 
@@ -44,38 +141,50 @@ export default function RankingPage() {
           <Table>
             <TableHeader className="bg-secondary/50">
               <TableRow>
-                <TableHead className="w-16 text-center">Pos</TableHead>
+                <TableHead className="text-center w-16">Pos</TableHead>
                 <TableHead>Participante</TableHead>
-                <TableHead className="text-center hidden sm:table-cell">Exactos</TableHead>
-                <TableHead className="text-center hidden sm:table-cell">Aciertos</TableHead>
+                <TableHead className="text-center hidden sm:table-cell">
+                  Exactos
+                </TableHead>
+                <TableHead className="text-center hidden sm:table-cell">
+                  Aciertos
+                </TableHead>
                 <TableHead className="text-right pr-8">Puntos</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {ranking.map((row, i) => (
-                <TableRow key={row.uid} className={cn(
-                  "h-16",
-                  row.isUser ? "bg-accent/10 border-l-4 border-l-accent" : ""
-                )}>
+                <TableRow key={row.uid}>
                   <TableCell className="text-center">
                     <div className="flex justify-center items-center gap-1 font-bold">
                       {getMedal(i)}
-                      <span className={cn(i < 3 ? "text-lg" : "text-sm")}>{i + 1}</span>
+                      {i + 1}
                     </div>
                   </TableCell>
+
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <img src={row.foto} alt="" className="w-9 h-9 rounded-full border" />
-                      <div>
-                        <p className={cn("font-bold", row.isUser ? "text-accent" : "")}>{row.nombre}</p>
-                        <p className="text-[10px] text-muted-foreground sm:hidden">Exactos: {row.exactos}</p>
-                      </div>
+                      <img
+                        src={row.foto}
+                        className="w-9 h-9 rounded-full border"
+                      />
+                      <p className="font-bold">{row.nombre}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="text-center hidden sm:table-cell font-medium">{row.exactos}</TableCell>
-                  <TableCell className="text-center hidden sm:table-cell font-medium">{row.efectivos}</TableCell>
+
+                  <TableCell className="text-center hidden sm:table-cell">
+                    {row.exactos}
+                  </TableCell>
+
+                  <TableCell className="text-center hidden sm:table-cell">
+                    {row.efectivos}
+                  </TableCell>
+
                   <TableCell className="text-right pr-8">
-                    <span className="text-xl font-headline font-black text-primary">{row.puntos}</span>
+                    <span className="text-xl font-black text-primary">
+                      {row.puntos}
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}
